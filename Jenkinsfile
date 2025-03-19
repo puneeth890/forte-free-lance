@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:16'  // Use a Node.js Docker image
-            args '-v /tmp/.npm:/root/.npm'  // Persist npm cache
-        }
-    }
+    agent any  // Use a standard Jenkins agent
 
     parameters {
         choice(name: 'ENVIRONMENT', choices: ['main', 'dev', 'qa'], description: 'Choose deployment environment')
