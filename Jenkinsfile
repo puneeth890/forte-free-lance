@@ -2,12 +2,10 @@ pipeline {
     agent any
 
     parameters {
-        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa'], description: 'Choose deployment environment')
+        choice(name: 'ENVIRONMENT', choices: ['main', 'dev', 'qa'], description: 'Choose deployment environment')
     }
 
     environment {
-        AWS_REGION = 'us-east-1'
-        S3_BUCKET = "forte-freelance-${params.ENVIRONMENT}-bucket"
         SLACK_WEBHOOK = credentials('SLACK_WEBHOOK_URL')
     }
 
@@ -15,7 +13,7 @@ pipeline {
         stage('Notify Start') {
             steps {
                 script {
-                    slackNotify("🚀 Build Started for *${params.ENVIRONMENT}* environment.")
+                    slackNotify("🚀 *Build Started* for `${params.ENVIRONMENT}` environment.")
                 }
             }
         }
@@ -42,8 +40,8 @@ pipeline {
             steps {
                 sh '''
                     echo "Deploying to $ENVIRONMENT environment..."
-                    aws s3 mb s3://$S3_BUCKET --region $AWS_REGION || true
-                    aws s3 sync ./dist s3://$S3_BUCKET --delete
+                    aws s3 mb s3://forte-freelance-${params.ENVIRONMENT}-bucket || true
+                    aws s3 sync ./dist s3://forte-freelance-${params.ENVIRONMENT}-bucket --delete
                 '''
             }
         }
@@ -52,12 +50,12 @@ pipeline {
     post {
         success {
             script {
-                slackNotify("✅ Build *SUCCESSFUL* for *${params.ENVIRONMENT}* environment.")
+                slackNotify("✅ *Build SUCCESSFUL* for `${params.ENVIRONMENT}` environment.")
             }
         }
         failure {
             script {
-                slackNotify("❌ Build *FAILED* for *${params.ENVIRONMENT}* environment.")
+                slackNotify("❌ *Build FAILED* for `${params.ENVIRONMENT}` environment.")
             }
         }
     }
@@ -65,6 +63,7 @@ pipeline {
 
 def slackNotify(String message) {
     sh """
-        curl -X POST -H 'Content-type: application/json' --data '{ "text": "${message}" }' $SLACK_WEBHOOK
+        curl -X POST -H 'Content-type: application/json' \
+        --data '{ "text": "${message}" }' $SLACK_WEBHOOK
     """
 }
