@@ -1,43 +1,51 @@
 pipeline {
-    agent any  // Use a standard Jenkins agent
+    agent any
 
-    parameters {
-        choice(name: 'ENVIRONMENT', choices: ['main', 'dev', 'qa'], description: 'Choose deployment environment')
+    environment {
+        AWS_DEFAULT_REGION = 'us-east-1' // Update if your region is different
+        S3_BUCKET_NAME = 'forte-free-lance-artifacts'
+        SLACK_WEBHOOK_URL = credentials('slack-webhook-url') // Set this in Jenkins credentials
     }
 
     stages {
         stage('Notify Start') {
             steps {
                 script {
-                    slackNotify("🚀 *Build Started* for `${params.ENVIRONMENT}` environment.")
+                    slackSend(color: '#FFFF00', message: "🚀 Build started for *Forte Free Lance Project*")
                 }
             }
         }
 
         stage('Checkout Code') {
             steps {
-                git branch: "${params.ENVIRONMENT}", url: 'https://github.com/puneeth890/forte-free-lance.git'
+                git 'https://github.com/puneeth890/forte-free-lance.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh '''
+                    if [ -f package.json ]; then
+                        npm install
+                    fi
+                '''
             }
         }
 
         stage('Build App') {
             steps {
-                sh 'npm run build'
+                sh '''
+                    echo "Building app..."
+                    # Add your build commands here (e.g., npm run build)
+                '''
             }
         }
 
         stage('Deploy to AWS S3') {
             steps {
                 sh '''
-                    echo "Deploying to $ENVIRONMENT environment..."
-                    aws s3 mb s3://forte-freelance-${params.ENVIRONMENT}-bucket || true
-                    aws s3 sync ./dist s3://forte-freelance-${params.ENVIRONMENT}-bucket --delete
+                    echo "Deploying to S3..."
+                    aws s3 cp ./dist s3://$S3_BUCKET_NAME/ --recursive
                 '''
             }
         }
@@ -46,12 +54,12 @@ pipeline {
     post {
         success {
             script {
-                slackNotify("✅ *Build SUCCESSFUL* for `${params.ENVIRONMENT}` environment.")
+                slackSend(color: '#36a64f', message: "✅ Build and deployment successful for *Forte Free Lance Project*")
             }
         }
         failure {
             script {
-                slackNotify("❌ *Build FAILED* for `${params.ENVIRONMENT}` environment.")
+                slackSend(color: '#FF0000', message: "❌ Build failed for *Forte Free Lance Project*")
             }
         }
     }
