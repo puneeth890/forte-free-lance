@@ -1,12 +1,13 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:16'  // Use a Node.js Docker image
+            args '-v /tmp/.npm:/root/.npm'  // Persist npm cache
+        }
+    }
 
     parameters {
         choice(name: 'ENVIRONMENT', choices: ['main', 'dev', 'qa'], description: 'Choose deployment environment')
-    }
-
-    environment {
-        SLACK_WEBHOOK = credentials('SLACK_WEBHOOK_URL')
     }
 
     stages {
@@ -59,11 +60,4 @@ pipeline {
             }
         }
     }
-}
-
-def slackNotify(String message) {
-    sh """
-        curl -X POST -H 'Content-type: application/json' \
-        --data '{ "text": "${message}" }' $SLACK_WEBHOOK
-    """
 }
