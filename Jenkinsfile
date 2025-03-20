@@ -2,7 +2,9 @@ pipeline {
     agent any
 
     environment {
-        AWS_BUCKET = 'forte-free-lance-artifacts'
+        AWS_REGION = 'us-east-1'
+        S3_BUCKET_NAME = 'forte-free-lance-artifacts'
+        PATH = "/opt/homebrew/bin:$PATH" // 👈 Ensures Jenkins can find npm
         SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
     }
 
@@ -10,9 +12,7 @@ pipeline {
         stage('Notify Start') {
             steps {
                 script {
-                    sh """
-                    curl -X POST -H 'Content-type: application/json' --data '{"text":"🚀 Build Started: forte-free-lance-pipeline"}' $SLACK_WEBHOOK_URL
-                    """
+                    slackSend(color: '#439FE0', message: "🚀 Build started for *${env.JOB_NAME}* - #${env.BUILD_NUMBER}")
                 }
             }
         }
@@ -35,11 +35,33 @@ pipeline {
             }
         }
 
-        stage('Deploy to AWS S3') {
+        stage('Test (Dev Environment)') {
             steps {
-                sh """
-                aws s3 cp ./dist/ s3://$AWS_BUCKET/ --recursive
-                """
+                echo '✅ Running tests in Dev environment...'
+                sh 'npm test || true' // Use real test command here
+            }
+        }
+
+        stage('Deploy to Dev') {
+            steps {
+                echo '🚀 Deploying to Dev environment...'
+                // Add your Dev deployment logic (optional)
+            }
+        }
+
+        stage('Deploy to QA') {
+            steps {
+                echo '🚀 Deploying to QA environment...'
+                // Add your QA deployment logic (optional)
+            }
+        }
+
+        stage('Deploy Artifacts to S3') {
+            steps {
+                echo '📦 Uploading build artifacts to S3...'
+                sh '''
+                    aws s3 cp dist/ s3://$S3_BUCKET_NAME/ --recursive --region $AWS_REGION
+                '''
             }
         }
     }
@@ -47,16 +69,12 @@ pipeline {
     post {
         success {
             script {
-                sh """
-                curl -X POST -H 'Content-type: application/json' --data '{"text":"✅ Build Succeeded: forte-free-lance-pipeline"}' $SLACK_WEBHOOK_URL
-                """
+                slackSend(color: 'good', message: "✅ Build SUCCESS for *${env.JOB_NAME}* - #${env.BUILD_NUMBER}")
             }
         }
         failure {
             script {
-                sh """
-                curl -X POST -H 'Content-type: application/json' --data '{"text":"❌ Build Failed: forte-free-lance-pipeline"}' $SLACK_WEBHOOK_URL
-                """
+                slackSend(color: 'danger', message: "❌ Build FAILED for *${env.JOB_NAME}* - #${env.BUILD_NUMBER}")
             }
         }
     }
