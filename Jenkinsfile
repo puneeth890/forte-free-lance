@@ -2,80 +2,60 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'us-east-1'
-        S3_BUCKET_NAME = 'forte-free-lance-artifacts'
-        PATH = "/opt/homebrew/bin:$PATH" // 👈 Ensures Jenkins can find npm
-        SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
+        SLACK_CHANNEL = '#ci-cd-notifications'  // Your Slack channel
+        SLACK_CREDENTIALS_ID = 'slack-token'    // Set this in Jenkins credentials
+        GIT_REPO = 'https://github.com/puneeth890/forte-free-lance.git'
     }
 
     stages {
-        stage('Notify Start') {
-            steps {
-                script {
-                    slackSend(color: '#439FE0', message: "🚀 Build started for *${env.JOB_NAME}* - #${env.BUILD_NUMBER}")
-                }
-            }
-        }
-
         stage('Checkout Code') {
             steps {
-                checkout scm
+                git url: "${GIT_REPO}", branch: "${env.BRANCH_NAME}"
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build') {
             steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Build App') {
-            steps {
-                sh 'npm run build'
-            }
-        }
-
-        stage('Test (Dev Environment)') {
-            steps {
-                echo '✅ Running tests in Dev environment...'
-                sh 'npm test || true' // Use real test command here
+                echo "Running build for ${env.BRANCH_NAME} branch..."
+                // Add actual build commands here
             }
         }
 
         stage('Deploy to Dev') {
+            when {
+                branch 'develop'
+            }
             steps {
-                echo '🚀 Deploying to Dev environment...'
-                // Add your Dev deployment logic (optional)
+                echo "Deploying to DEV environment..."
+                // Add Dev deployment commands here
             }
         }
 
         stage('Deploy to QA') {
-            steps {
-                echo '🚀 Deploying to QA environment...'
-                // Add your QA deployment logic (optional)
+            when {
+                branch 'qa'
             }
-        }
-
-        stage('Deploy Artifacts to S3') {
             steps {
-                echo '📦 Uploading build artifacts to S3...'
-                sh '''
-                    aws s3 cp dist/ s3://$S3_BUCKET_NAME/ --recursive --region $AWS_REGION
-                '''
+                echo "Deploying to QA environment..."
+                // Add QA deployment commands here
             }
         }
     }
 
     post {
         success {
-            script {
-                slackSend(color: 'good', message: "✅ Build SUCCESS for *${env.JOB_NAME}* - #${env.BUILD_NUMBER}")
-            }
+            slackSend(
+                channel: "${SLACK_CHANNEL}",
+                color: 'good',
+                message: "✅ SUCCESS: Job *${env.JOB_NAME}* #${env.BUILD_NUMBER} on branch *${env.BRANCH_NAME}*"
+            )
         }
         failure {
-            script {
-                slackSend(color: 'danger', message: "❌ Build FAILED for *${env.JOB_NAME}* - #${env.BUILD_NUMBER}")
-            }
+            slackSend(
+                channel: "${SLACK_CHANNEL}",
+                color: 'danger',
+                message: "❌ FAILURE: Job *${env.JOB_NAME}* #${env.BUILD_NUMBER} on branch *${env.BRANCH_NAME}*"
+            )
         }
     }
 }
