@@ -1,70 +1,48 @@
 pipeline {
     agent any
 
-    parameters {
-        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa'], description: 'Choose deployment environment')
-    }
-
-    environment {
-        AWS_REGION = 'us-east-1'
-        S3_BUCKET = "forte-freelance-${params.ENVIRONMENT}-bucket"
-        SLACK_WEBHOOK = credentials('SLACK_WEBHOOK_URL')
-    }
-
     stages {
-        stage('Notify Start') {
-            steps {
-                script {
-                    slackNotify("🚀 Build Started for *${params.ENVIRONMENT}* environment.")
-                }
-            }
-        }
-
         stage('Checkout Code') {
             steps {
-                git branch: "${params.ENVIRONMENT}", url: 'https://github.com/puneeth890/forte-free-lance.git'
+                git 'https://github.com/puneeth890/forte-free-lance.git'
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Validate JSON') {
             steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Build App') {
-            steps {
-                sh 'npm run build'
-            }
-        }
-
-        stage('Deploy to AWS S3') {
-            steps {
+                echo 'Validating JSON files...'
                 sh '''
-                    echo "Deploying to $ENVIRONMENT environment..."
-                    aws s3 mb s3://$S3_BUCKET --region $AWS_REGION || true
-                    aws s3 sync ./dist s3://$S3_BUCKET --delete
+                set -e
+                echo "Checking JSON syntax in all .json files..."
+                for file in $(find . -name "*.json"); do
+                    echo "Validating $file"
+                    python3 -m json.tool "$file" > /dev/null
+                done
                 '''
+            }
+        }
+
+        stage('Deploy to Dev') {
+            steps {
+                echo 'Deploying to Dev (placeholder step)...'
+                // Replace this with actual deployment logic if needed
+            }
+        }
+
+        stage('Deploy to QA') {
+            steps {
+                echo 'Deploying to QA (placeholder step)...'
+                // Replace this with actual deployment logic if needed
             }
         }
     }
 
     post {
         success {
-            script {
-                slackNotify("✅ Build *SUCCESSFUL* for *${params.ENVIRONMENT}* environment.")
-            }
+            echo '✅ All JSON files are valid. Pipeline completed successfully.'
         }
         failure {
-            script {
-                slackNotify("❌ Build *FAILED* for *${params.ENVIRONMENT}* environment.")
-            }
+            echo '❌ Pipeline failed. Check the logs above for JSON issues.'
         }
     }
-}
-
-def slackNotify(String message) {
-    sh """
-        curl -X POST -H 'Content-type: application/json' --data '{ "text": "${message}" }' $SLACK_WEBHOOK
-    """
 }
