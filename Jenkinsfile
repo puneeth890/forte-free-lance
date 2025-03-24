@@ -1,43 +1,48 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Git branch to build')
+    }
+
     environment {
-        SLACK_CHANNEL = '#ci-cd-notifications'  // Your Slack channel
-        SLACK_CREDENTIALS_ID = 'slack-token'    // Set this in Jenkins credentials
+        SLACK_CHANNEL = '#ci-cd-notifications'
+        SLACK_CREDENTIALS_ID = 'slack-token'
         GIT_REPO = 'https://github.com/puneeth890/forte-free-lance.git'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git url: "${GIT_REPO}", branch: "${env.BRANCH_NAME}"
+                git url: "${GIT_REPO}", branch: "${params.BRANCH_NAME}"
             }
         }
 
         stage('Build') {
             steps {
-                echo "Running build for ${env.BRANCH_NAME} branch..."
+                echo "Running build for ${params.BRANCH_NAME} branch..."
                 // Add actual build commands here
+                sh 'mvn clean package'  // Example for Java
             }
         }
 
         stage('Deploy to Dev') {
             when {
-                branch 'develop'
+                expression { params.BRANCH_NAME == 'develop' }
             }
             steps {
                 echo "Deploying to DEV environment..."
-                // Add Dev deployment commands here
+                // Dev deployment steps
             }
         }
 
         stage('Deploy to QA') {
             when {
-                branch 'qa'
+                expression { params.BRANCH_NAME == 'qa' }
             }
             steps {
                 echo "Deploying to QA environment..."
-                // Add QA deployment commands here
+                // QA deployment steps
             }
         }
     }
@@ -47,14 +52,14 @@ pipeline {
             slackSend(
                 channel: "${SLACK_CHANNEL}",
                 color: 'good',
-                message: "✅ SUCCESS: Job *${env.JOB_NAME}* #${env.BUILD_NUMBER} on branch *${env.BRANCH_NAME}*"
+                message: "✅ SUCCESS: Job *${env.JOB_NAME}* #${env.BUILD_NUMBER} on branch *${params.BRANCH_NAME}*"
             )
         }
         failure {
             slackSend(
                 channel: "${SLACK_CHANNEL}",
                 color: 'danger',
-                message: "❌ FAILURE: Job *${env.JOB_NAME}* #${env.BUILD_NUMBER} on branch *${env.BRANCH_NAME}*"
+                message: "❌ FAILURE: Job *${env.JOB_NAME}* #${env.BUILD_NUMBER} on branch *${params.BRANCH_NAME}*"
             )
         }
     }
