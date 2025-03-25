@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         GIT_REPO = 'https://github.com/puneeth890/forte-free-lance.git'
-        SLACK_WEBHOOK = 'YOUR_SLACK_WEBHOOK_URL'
+        SLACK_WEBHOOK = 'YOUR_SLACK_WEBHOOK_URL' // Replace with your actual webhook URL
     }
 
     stages {
@@ -74,13 +74,19 @@ pipeline {
         success {
             script {
                 echo 'Build & Deployment Successful! Sending Slack notification...'
-                sh \"curl -X POST -H 'Content-type: application/json' --data '{\\\"text\\\": \\\"Jenkins Build & Deployment Successful!\\\"}' ${SLACK_WEBHOOK}\"
+                sh '''
+                    curl -X POST -H 'Content-type: application/json' \
+                    --data '{"text":"✅ Jenkins Build & Deployment Successful!"}' ${SLACK_WEBHOOK}
+                '''
             }
         }
         failure {
             script {
                 echo 'Build Failed! Sending Slack notification...'
-                sh \"curl -X POST -H 'Content-type: application/json' --data '{\\\"text\\\": \\\"Jenkins Build Failed!\\\"}' ${SLACK_WEBHOOK}\"
+                sh '''
+                    curl -X POST -H 'Content-type: application/json' \
+                    --data '{"text":"❌ Jenkins Build Failed!"}' ${SLACK_WEBHOOK}
+                '''
             }
         }
     }
