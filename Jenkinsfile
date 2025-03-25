@@ -1,48 +1,93 @@
 pipeline {
     agent any
 
+    environment {
+        GIT_REPO = 'https://github.com/puneeth890/forte-free-lance.git'
+        SLACK_WEBHOOK = 'YOUR_SLACK_WEBHOOK_URL' // Replace with your actual webhook URL
+    }
+
     stages {
-        stage('Checkout Code') {
+        stage('Clone Repository') {
             steps {
-                git 'https://github.com/puneeth890/forte-free-lance.git'
+                git branch: 'main', url: env.GIT_REPO
             }
         }
 
-        stage('Validate JSON') {
+        stage('Build - Dev') {
             steps {
-                echo 'Validating JSON files...'
-                sh '''
-                set -e
-                echo "Checking JSON syntax in all .json files..."
-                for file in $(find . -name "*.json"); do
-                    echo "Validating $file"
-                    python3 -m json.tool "$file" > /dev/null
-                done
-                '''
+                script {
+                    echo 'Building in Dev Environment...'
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
             }
         }
 
-        stage('Deploy to Dev') {
+        stage('Test - Dev') {
             steps {
-                echo 'Deploying to Dev (placeholder step)...'
-                // Replace this with actual deployment logic if needed
+                script {
+                    echo 'Running tests in Dev...'
+                    sh 'npm test'
+                }
             }
         }
 
-        stage('Deploy to QA') {
+        stage('Deploy - Dev') {
             steps {
-                echo 'Deploying to QA (placeholder step)...'
-                // Replace this with actual deployment logic if needed
+                script {
+                    echo 'Deploying to Dev Environment...'
+                    sh './deploy-dev.sh'
+                }
+            }
+        }
+
+        stage('Build - QA') {
+            steps {
+                script {
+                    echo 'Building in QA Environment...'
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+            }
+        }
+
+        stage('Test - QA') {
+            steps {
+                script {
+                    echo 'Running tests in QA...'
+                    sh 'npm test'
+                }
+            }
+        }
+
+        stage('Deploy - QA') {
+            steps {
+                script {
+                    echo 'Deploying to QA Environment...'
+                    sh './deploy-qa.sh'
+                }
             }
         }
     }
 
     post {
         success {
-            echo '✅ All JSON files are valid. Pipeline completed successfully.'
+            script {
+                echo 'Build & Deployment Successful! Sending Slack notification...'
+                sh '''
+                    curl -X POST -H 'Content-type: application/json' \
+                    --data '{"text":"✅ Jenkins Build & Deployment Successful!"}' ${SLACK_WEBHOOK}
+                '''
+            }
         }
         failure {
-            echo '❌ Pipeline failed. Check the logs above for JSON issues.'
+            script {
+                echo 'Build Failed! Sending Slack notification...'
+                sh '''
+                    curl -X POST -H 'Content-type: application/json' \
+                    --data '{"text":"❌ Jenkins Build Failed!"}' ${SLACK_WEBHOOK}
+                '''
+            }
         }
     }
 }
